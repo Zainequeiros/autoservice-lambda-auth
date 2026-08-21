@@ -1,0 +1,168 @@
+name: Lambda Auth CI/CD
+
+on:
+  push:
+    branches: [ homolog, prod ]
+  pull_request:
+    branches: [ homolog, prod ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java-version: [ 21 ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: temurin
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn -B clean compile
+
+      - name: Run tests
+        run: mvn -B test
+
+      - name: Generate test report
+        if: always()
+        run: mvn -B jacoco:report
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-auth-test-reports
+          path: |
+            target/surefire-reports/
+            target/site/jacoco/
+
+  package:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: temurin
+          cache: maven
+
+      - name: Build fat JAR
+        run: mvn -B clean package -DskipTests
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-auth-jar
+          path: target/lambda-auth-*.jar
+
+  deploy:
+    needs: package
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/homolog' || github.ref == 'refs/heads/prod')
+    environment:
+      name: ${{ github.ref == 'refs/heads/homolog' && 'homolog' || 'prod' }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: temurin
+          cache: maven
+
+      - name: Build fat JAR
+        run: mvn -B clean package -DskipTests
+
+      - name: Verify required deploy secrets
+        env:
+          AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          LAMBDA_FUNCTION_NAME: ${{ secrets.LAMBDA_FUNCTION_NAME }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          test -n "${AWS_ROLE_TO_ASSUME}"
+          test -n "${AWS_REGION}"
+          test -n "${LAMBDA_FUNCTION_NAME}"
+          test -n "${JWT_SECRET}"
+          test -n "${DB_HOST}"
+          test -n "${DB_NAME}"
+          test -n "${DB_USER}"
+          test -n "${DB_PASSWORD}"
+          test "${#JWT_SECRET}" -ge 32
+          test "${JWT_SECRET}" != "change-me-in-production"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy code to Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name "${{ secrets.LAMBDA_FUNCTION_NAME }}" \
+            --zip-file "fileb://target/lambda-auth-1.0.0.jar" \
+            --region "${{ secrets.AWS_REGION }}"
+
+      - name: Update Lambda configuration
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_ISSUER: ${{ secrets.JWT_ISSUER }}
+          JWT_EXPIRES_SECONDS: ${{ secrets.JWT_EXPIRES_SECONDS }}
+          JWT_KEY_ID: ${{ secrets.JWT_KEY_ID }}
+        shell: bash
+        run: |
+          DB_PORT_VALUE="${DB_PORT:-5432}"
+          JWT_ISSUER_VALUE="${JWT_ISSUER:-autoservice-auth}"
+          JWT_EXPIRES_VALUE="${JWT_EXPIRES_SECONDS:-3600}"
+          JWT_KEY_ID_VALUE="${JWT_KEY_ID:-v1}"
+
+          aws lambda update-function-configuration \
+            --function-name "${{ secrets.LAMBDA_FUNCTION_NAME }}" \
+            --handler "com.autoservice.lambda.AuthHandler::handleRequest" \
+            --runtime "java21" \
+            --timeout 15 \
+            --memory-size 512 \
+            --environment "Variables={DB_HOST=${DB_HOST},DB_PORT=${DB_PORT_VALUE},DB_NAME=${DB_NAME},DB_USER=${DB_USER},DB_PASSWORD=${DB_PASSWORD},JWT_SECRET=${JWT_SECRET},JWT_ISSUER=${JWT_ISSUER_VALUE},JWT_EXPIRES_SECONDS=${JWT_EXPIRES_VALUE},JWT_KEY_ID=${JWT_KEY_ID_VALUE}}" \
+            --region "${{ secrets.AWS_REGION }}"
+
+      - name: Wait for deployment
+        run: |
+          aws lambda wait function-updated \
+            --function-name "${{ secrets.LAMBDA_FUNCTION_NAME }}" \
+            --region "${{ secrets.AWS_REGION }}"
+
+      - name: Test Lambda function
+        run: |
+          aws lambda invoke \
+            --function-name "${{ secrets.LAMBDA_FUNCTION_NAME }}" \
+            --payload '{"body":"{\"cpf\":\"390.533.447-05\"}"}' \
+            --region "${{ secrets.AWS_REGION }}" \
+            /tmp/lambda-response.json
+          cat /tmp/lambda-response.json
