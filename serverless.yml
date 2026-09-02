@@ -1,0 +1,43 @@
+service: autoservice-lambda-auth
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ${env:AWS_REGION, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  environment:
+    JWT_SECRET: ${env:JWT_SECRET, 'change-me'}
+    JWT_ISSUER: ${env:JWT_ISSUER, 'autoservice-auth'}
+    JWT_EXPIRES_SECONDS: ${env:JWT_EXPIRES_SECONDS, '3600'}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: '*'
+
+functions:
+  authCpf:
+    handler: src/lambda_function.handler
+    events:
+      - http:
+          path: /auth/cpf
+          method: post
+          cors: true
+
+package:
+  patterns:
+    - '!**/**'
+    - 'src/**'
+    - 'requirements.txt'
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+    stripEssentials: true
