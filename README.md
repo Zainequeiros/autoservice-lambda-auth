@@ -9,6 +9,17 @@ Este repositorio contem a Lambda responsavel por:
 - consultar a existencia e o status do cliente;
 - emitir JWT para consumo em rotas protegidas via API Gateway.
 
+## Alinhamento ao desafio corporativo
+
+Este repositório cobre o requisito de autenticação corporativa do sistema:
+
+- API Gateway expõe as rotas públicas e encaminha autenticação para a Lambda.
+- A função valida CPF, consulta o cliente no banco e gera JWT com expiração e claims de segurança.
+- O token é usado para proteger rotas sensíveis da aplicação principal em Kubernetes.
+- O stack é serverless, escalável e com baixo custo operacional para autenticação.
+- O pipeline de CI/CD valida testes, empacota a função e faz deploy em homologação e produção.
+- A configuração do repositório segue o modelo de branch protection com PR obrigatório e deploy automático por ambiente.
+
 ## Tecnologias
 
 - Python 3.11
@@ -107,12 +118,17 @@ Resposta para cliente inativo:
 - `JWT_ISSUER` (padrao: `autoservice-auth`)
 - `JWT_EXPIRES_SECONDS` (padrao: `3600`)
 - `AWS_REGION` (definida no ambiente da AWS / GitHub Actions)
+- `DATADOG_API_KEY` (opcional, para integração com Datadog)
+- `DATADOG_SITE` (opcional, padrao: `datadoghq.com`)
+- `LOG_LEVEL` (opcional, padrao: `INFO`)
 
 ## CI/CD
 
 - Pull request para `main`: executa testes.
 - Push em `main` ou `homolog`: executa testes, empacota a Lambda e faz o deploy automatico via Serverless Framework.
 - O pipeline usa `serverless package` e `serverless deploy` com secrets do GitHub.
+- Deploy ativo: configure o endpoint da API Gateway no ambiente de homologação e produção após o deploy da stack Serverless.
+- Branch protection recomendada: `main`/`master` protegidas, merge somente via Pull Request.
 
 Secrets esperados no GitHub:
 - `AWS_ROLE_TO_ASSUME`
@@ -162,3 +178,9 @@ flowchart LR
 ## Swagger / Postman
 
 O contrato OpenAPI da API esta em `swagger.yaml` e pode ser importado em ferramentas como Swagger Editor, Postman ou Insomnia.
+
+## Links de deploy ativos
+
+- Homologação: defina em `AWS_API_GATEWAY_URL_HOMOLOG`
+- Produção: defina em `AWS_API_GATEWAY_URL_PROD`
+- Dashboard Datadog: configure no ambiente para monitorar latência, erros e uso de tokens JWT.
