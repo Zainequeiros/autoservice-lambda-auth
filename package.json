@@ -1,0 +1,12 @@
+{
+  "name": "autoservice-lambda-auth",
+  "private": true,
+  "scripts": {
+    "package": "serverless package",
+    "deploy": "serverless deploy"
+  },
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-python-requirements": "^6.1.2"
+  }
+}

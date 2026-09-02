@@ -1,0 +1,77 @@
+openapi: 3.0.3
+info:
+  title: AutoService Auth CPF
+  version: 1.0.0
+  description: API para autenticar clientes por CPF e emitir um token JWT.
+servers:
+  - url: https://{apiId}.execute-api.{region}.amazonaws.com/{stage}
+    variables:
+      apiId:
+        default: example
+      region:
+        default: us-east-1
+      stage:
+        default: dev
+paths:
+  /auth/cpf:
+    post:
+      summary: Autentica cliente por CPF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cpf
+              properties:
+                cpf:
+                  type: string
+                  example: 390.533.447-05
+      responses:
+        '200':
+          description: Cliente autenticado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  token_type:
+                    type: string
+                    example: Bearer
+                  expires_in:
+                    type: integer
+                    example: 3600
+        '400':
+          description: CPF ausente ou inválido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: CPF invalido.
+        '403':
+          description: Cliente inativo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Cliente inativo.
+        '404':
+          description: Cliente não encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Cliente nao encontrado.
