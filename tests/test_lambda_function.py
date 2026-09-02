@@ -25,9 +25,9 @@ def test_returns_403_when_customer_is_inactive():
 
 
 def test_returns_token_for_active_customer():
-    os.environ["JWT_SECRET"] = "test-secret"
-    os.environ["JWT_ISSUER"] = "autoservice-auth-test"
-    os.environ["JWT_EXPIRES_SECONDS"] = "120"
+    monkeypatch.setenv("JWT_SECRET", "test-secret")
+    monkeypatch.setenv("JWT_ISSUER", "autoservice-auth-test")
+    monkeypatch.setenv("JWT_EXPIRES_SECONDS", "120")
 
     response = handler({"body": json.dumps({"cpf": "390.533.447-05"})}, None)
 
