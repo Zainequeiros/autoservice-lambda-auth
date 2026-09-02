@@ -16,45 +16,24 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt pytest
+          pip install -r requirements.txt pytest
 
       - name: Run tests
         run: pytest -q
 
-  build-and-deploy:
+  deploy:
     if: github.event_name == 'push'
     needs: test
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'homolog' }}
-    env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      JWT_SECRET: ${{ secrets.JWT_SECRET }}
-      JWT_ISSUER: ${{ secrets.JWT_ISSUER != '' && secrets.JWT_ISSUER || 'autoservice-auth' }}
-      JWT_EXPIRES_SECONDS: ${{ secrets.JWT_EXPIRES_SECONDS != '' && secrets.JWT_EXPIRES_SECONDS || '3600' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install Serverless dependencies
-        run: |
-          npm install --no-fund --no-audit
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -62,8 +41,15 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Build Lambda package
-        run: npx serverless package --stage ${{ github.ref_name == 'main' && 'prod' || 'homolog' }}
+      - name: Package Lambda
+        run: |
+          mkdir -p dist
+          cp -R src/* dist/
+          cd dist
+          zip -r lambda-auth.zip .
 
-      - name: Deploy Lambda with Serverless
-        run: npx serverless deploy --stage ${{ github.ref_name == 'main' && 'prod' || 'homolog' }} --verbose
+      - name: Deploy Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
+            --zip-file fileb://dist/lambda-auth.zip

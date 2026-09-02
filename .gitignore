@@ -6,8 +6,6 @@ __pycache__/
 venv/
 dist/
 build/
-.serverless/
-node_modules/
 *.pyc
 *.pyo
 *.pyd
