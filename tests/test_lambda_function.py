@@ -24,7 +24,7 @@ def test_returns_403_when_customer_is_inactive():
     assert response["statusCode"] == 403
 
 
-def test_returns_token_for_active_customer():
+def test_returns_token_for_active_customer(monkeypatch):
     monkeypatch.setenv("JWT_SECRET", "test-secret")
     monkeypatch.setenv("JWT_ISSUER", "autoservice-auth-test")
     monkeypatch.setenv("JWT_EXPIRES_SECONDS", "120")
