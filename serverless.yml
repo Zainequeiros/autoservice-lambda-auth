@@ -5,6 +5,7 @@ provider:
   runtime: python3.11
   region: ${env:AWS_REGION, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
+  role: arn:aws:iam::251858421017:role/LabRole
   environment:
     JWT_SECRET: ${env:JWT_SECRET, 'change-me'}
     JWT_ISSUER: ${env:JWT_ISSUER, 'autoservice-auth'}
