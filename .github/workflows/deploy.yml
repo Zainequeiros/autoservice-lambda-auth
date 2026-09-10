@@ -30,10 +30,10 @@ jobs:
 
       - name: Deploy with Serverless Framework
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID}}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN}}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
           AWS_REGION: 'us-east-1'
-          JWT_SECRET: ${{ secrets.JWT_SECRET}}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           npx serverless deploy --stage dev
