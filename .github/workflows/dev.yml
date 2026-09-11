@@ -1,14 +1,12 @@
-name: CI/CD Pipeline
+name: CI/CD Homologation (dev)
 
 on:
   push:
     branches:
       - develop
-      - main
   pull_request:
     branches:
       - develop
-      - main
 
 jobs:
   test:
@@ -36,7 +34,7 @@ jobs:
   deploy-dev:
     name: Deploy to Homologation (dev)
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
@@ -64,35 +62,3 @@ jobs:
           AWS_REGION: 'us-east-1'
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: npx serverless@3.38.0 deploy --stage dev
-
-  deploy-prod:
-    name: Deploy to Production (prod)
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Deploy with Serverless Framework (prod)
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_REGION: 'us-east-1'
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        run: npx serverless@3.38.0 deploy --stage prod
