@@ -1,9 +1,8 @@
 ﻿import json
 import os
 from datetime import datetime, timedelta, timezone
-
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import jwt
-
 from cpf import is_valid_cpf
 from repository import CustomerRepository
 
