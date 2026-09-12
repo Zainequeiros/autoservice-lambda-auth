@@ -7,8 +7,6 @@ provider:
   region: ${env:AWS_REGION, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
   role: arn:aws:iam::251858421017:role/LabRole
-  logs:
-    restApi: true
   environment:
     JWT_SECRET: ${env:JWT_SECRET, 'change-me'}
     JWT_ISSUER: ${env:JWT_ISSUER, 'autoservice-auth'}
@@ -22,15 +20,6 @@ provider:
     DB_PASSWORD: ${env:DB_PASSWORD, ''}
     DB_PORT: ${env:DB_PORT, '5432'}
 
-  iam:
-    role:
-      statements:
-        - Effect: Allow
-          Action:
-            - logs:CreateLogGroup
-            - logs:CreateLogStream
-            - logs:PutLogEvents
-          Resource: '*'
 
 functions:
   authCpf:
