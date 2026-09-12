@@ -5,10 +5,10 @@ from pathlib import Path
 import jwt
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
-import src.lambda_function as lambda_function
-from src.repository import Customer
+import lambda_function
+from repository import Customer
 
 
 def test_returns_400_when_cpf_is_missing():
