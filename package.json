@@ -11,7 +11,9 @@
     "serverless-python-requirements": "^6.1.2"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "pytest -q",
+    "package": "npx --no-install serverless package --stage dev",
+    "deploy": "npx --no-install serverless deploy --stage dev"
   },
   "repository": {
     "type": "git",
