@@ -9,7 +9,7 @@ from repository import CustomerRepository
 
 
 REPOSITORY = CustomerRepository()
-
+CONTENT_TYPE_JSON = "application/json; charset=utf-8"
 
 def normalize_cpf(cpf):
     return "".join(filter(str.isdigit, str(cpf or "")))
@@ -27,7 +27,7 @@ def handler(event, context):
                     "statusCode": 400,
                     "headers": {
                         "Access-Control-Allow-Origin": "*",
-                        "Content-Type": "application/json; charset=utf-8",
+                        "Content-Type": CONTENT_TYPE_JSON,
                     },
                     "body": json.dumps({"message": "Corpo da requisição JSON inválido."}, ensure_ascii=False),
                 }
@@ -41,7 +41,7 @@ def handler(event, context):
                 "statusCode": 400,
                 "headers": {
                     "Access-Control-Allow-Origin": "*",
-                    "Content-Type": "application/json; charset=utf-8",
+                    "Content-Type": CONTENT_TYPE_JSON,
                 },
                 "body": json.dumps({"message": "CPF é obrigatório."}, ensure_ascii=False),
             }
@@ -52,7 +52,7 @@ def handler(event, context):
                 "statusCode": 400,
                 "headers": {
                     "Access-Control-Allow-Origin": "*",
-                    "Content-Type": "application/json; charset=utf-8",
+                    "Content-Type": CONTENT_TYPE_JSON,
                 },
                 "body": json.dumps({"message": "CPF inválido."}, ensure_ascii=False),
             }
@@ -63,7 +63,7 @@ def handler(event, context):
                 "statusCode": 404,
                 "headers": {
                     "Access-Control-Allow-Origin": "*",
-                    "Content-Type": "application/json; charset=utf-8",
+                    "Content-Type": CONTENT_TYPE_JSON,
                 },
                 "body": json.dumps({"message": "CPF não cadastrado."}, ensure_ascii=False),
             }
@@ -73,7 +73,7 @@ def handler(event, context):
                 "statusCode": 403,
                 "headers": {
                     "Access-Control-Allow-Origin": "*",
-                    "Content-Type": "application/json; charset=utf-8",
+                    "Content-Type": CONTENT_TYPE_JSON,
                 },
                 "body": json.dumps({"message": "Cliente inativo."}, ensure_ascii=False),
             }
@@ -94,7 +94,7 @@ def handler(event, context):
             "statusCode": 200,
             "headers": {
                 "Access-Control-Allow-Origin": "*",
-                "Content-Type": "application/json; charset=utf-8",
+                "Content-Type": CONTENT_TYPE_JSON,
             },
             "body": json.dumps({
                 "token": token,
@@ -109,7 +109,7 @@ def handler(event, context):
             "statusCode": 500,
             "headers": {
                 "Access-Control-Allow-Origin": "*",
-                "Content-Type": "application/json; charset=utf-8",
+                "Content-Type": CONTENT_TYPE_JSON,
             },
             "body": json.dumps({"message": "Erro interno do servidor."}, ensure_ascii=False),
         }
