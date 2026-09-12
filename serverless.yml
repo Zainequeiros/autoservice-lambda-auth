@@ -23,6 +23,7 @@ provider:
 
 functions:
   authCpf:
+    name: cpf-auth
     handler: src/lambda_function.handler
     disableLogs: true
     events:
