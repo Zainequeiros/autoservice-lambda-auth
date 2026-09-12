@@ -17,7 +17,7 @@ def normalize_cpf(cpf):
 
 def handler(event, context):
     try:
-        body = event.get("body", "{}") if isinstance(event, dict) else "{}"
+        body = event.get("body") if isinstance(event, dict) and "body" in event else event
 
         if isinstance(body, str):
             try:
@@ -25,8 +25,11 @@ def handler(event, context):
             except json.JSONDecodeError:
                 return {
                     "statusCode": 400,
-                    "headers": {"Access-Control-Allow-Origin": "*"},
-                    "body": json.dumps({"message": "Corpo da requisição JSON inválido."}),
+                    "headers": {
+                        "Access-Control-Allow-Origin": "*",
+                        "Content-Type": "application/json; charset=utf-8",
+                    },
+                    "body": json.dumps({"message": "Corpo da requisição JSON inválido."}, ensure_ascii=False),
                 }
 
         if not isinstance(body, dict):
