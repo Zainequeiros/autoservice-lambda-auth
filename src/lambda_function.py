@@ -81,4 +81,3 @@ def handler(event, context):
             "headers": {"Access-Control-Allow-Origin": "*"},
             "body": json.dumps({"message": "Erro interno do servidor."}),
         }
-
