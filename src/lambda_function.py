@@ -1,66 +1,84 @@
 import json
 import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
+from datetime import datetime, timedelta, timezone
 
-def get_db_connection():
-    return psycopg2.connect(
-        host=os.environ.get('DB_HOST'),
-        database=os.environ.get('DB_NAME'),
-        user=os.environ.get('DB_USER'),
-        password=os.environ.get('DB_PASSWORD'),
-        port=os.environ.get('DB_PORT', '5432'),
-        connect_timeout=5
-    )
+import jwt
+
+from cpf import is_valid_cpf
+from repository import CustomerRepository
+
+
+REPOSITORY = CustomerRepository()
+
+
+def normalize_cpf(cpf):
+    return "".join(filter(str.isdigit, str(cpf or "")))
+
 
 def handler(event, context):
     try:
-        body = json.loads(event.get('body', '{}'))
-        cpf = body.get('cpf')
+        body = event.get("body", "{}") if isinstance(event, dict) else "{}"
+        if isinstance(body, str):
+            body = json.loads(body or "{}")
 
+        cpf = body.get("cpf")
         if not cpf:
             return {
-                'statusCode': 400,
-                'headers': {'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'message': 'CPF é obrigatório.'})
+                "statusCode": 400,
+                "headers": {"Access-Control-Allow-Origin": "*"},
+                "body": json.dumps({"message": "CPF é obrigatório."}),
             }
 
-        cpf_limpo = ''.join(filter(str.isdigit, str(cpf)))
-
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-        query = "SELECT id, nome, cpf FROM clientes WHERE cpf = %s LIMIT 1;"
-        cursor.execute(query, (cpf_limpo,))
-        usuario = cursor.fetchone()
-
-        cursor.close()
-        conn.close()
-
-        if not usuario:
+        cpf_limpo = normalize_cpf(cpf)
+        if not is_valid_cpf(cpf_limpo):
             return {
-                'statusCode': 404,
-                'headers': {'Access-Control-Allow-Origin': '*'},
-                'body': json.dumps({'message': 'CPF não cadastrado.'})
+                "statusCode": 400,
+                "headers": {"Access-Control-Allow-Origin": "*"},
+                "body": json.dumps({"message": "CPF invalido."}),
             }
+
+        customer = REPOSITORY.find_by_cpf(cpf_limpo)
+        if customer is None:
+            return {
+                "statusCode": 404,
+                "headers": {"Access-Control-Allow-Origin": "*"},
+                "body": json.dumps({"message": "CPF não cadastrado."}),
+            }
+
+        if not customer.active:
+            return {
+                "statusCode": 403,
+                "headers": {"Access-Control-Allow-Origin": "*"},
+                "body": json.dumps({"message": "Cliente inativo."}),
+            }
+
+        secret = os.environ.get("JWT_SECRET", "change-me")
+        issuer = os.environ.get("JWT_ISSUER", "autoservice-auth")
+        expires_seconds = int(os.environ.get("JWT_EXPIRES_SECONDS", "3600"))
+
+        token_payload = {
+            "cpf": cpf_limpo,
+            "status": customer.status,
+            "iss": issuer,
+            "exp": datetime.now(timezone.utc) + timedelta(seconds=expires_seconds),
+        }
+        token = jwt.encode(token_payload, secret, algorithm="HS256")
 
         return {
-            'statusCode': 200,
-            'headers': {'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({
-                'message': 'Autenticado com sucesso.',
-                'cliente': {
-                    'id': usuario['id'],
-                    'nome': usuario['nome'],
-                    'cpf': usuario['cpf']
-                }
-            })
+            "statusCode": 200,
+            "headers": {"Access-Control-Allow-Origin": "*"},
+            "body": json.dumps({
+                "token": token,
+                "token_type": "Bearer",
+                "expires_in": expires_seconds,
+            }),
         }
 
     except Exception as e:
         print(f"Erro na execução da Lambda: {str(e)}")
         return {
-            'statusCode': 500,
-            'headers': {'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'message': 'Erro interno do servidor.'})
+            "statusCode": 500,
+            "headers": {"Access-Control-Allow-Origin": "*"},
+            "body": json.dumps({"message": "Erro interno do servidor."}),
         }
+
