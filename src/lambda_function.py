@@ -1,57 +1,66 @@
 import json
 import os
-import time
-from typing import Any, Dict
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
-import jwt
+def get_db_connection():
+    return psycopg2.connect(
+        host=os.environ.get('DB_HOST'),
+        database=os.environ.get('DB_NAME'),
+        user=os.environ.get('DB_USER'),
+        password=os.environ.get('DB_PASSWORD'),
+        port=os.environ.get('DB_PORT', '5432'),
+        connect_timeout=5
+    )
 
-from cpf import is_valid_cpf, only_digits
-from repository import CustomerRepository
+def handler(event, context):
+    try:
+        body = json.loads(event.get('body', '{}'))
+        cpf = body.get('cpf')
 
+        if not cpf:
+            return {
+                'statusCode': 400,
+                'headers': {'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'message': 'CPF é obrigatório.'})
+            }
 
-def _response(status_code: int, payload: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        "statusCode": status_code,
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(payload),
-    }
+        cpf_limpo = ''.join(filter(str.isdigit, str(cpf)))
 
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-def _generate_token(cpf: str, status: str) -> str:
-    secret = os.getenv("JWT_SECRET", "change-me")
-    issuer = os.getenv("JWT_ISSUER", "autoservice-auth")
-    expires_in = int(os.getenv("JWT_EXPIRES_SECONDS", "3600"))
-    now = int(time.time())
-    payload = {
-        "sub": cpf,
-        "cpf": cpf,
-        "customer_status": status,
-        "iss": issuer,
-        "iat": now,
-        "exp": now + expires_in,
-    }
-    return jwt.encode(payload, secret, algorithm="HS256")
+        query = "SELECT id, nome, cpf FROM clientes WHERE cpf = %s LIMIT 1;"
+        cursor.execute(query, (cpf_limpo,))
+        usuario = cursor.fetchone()
 
+        cursor.close()
+        conn.close()
 
-def handler(event: Dict[str, Any], _context: Any) -> Dict[str, Any]:
-    body_raw = event.get("body")
-    body = json.loads(body_raw) if isinstance(body_raw, str) else (body_raw or {})
-    cpf_input = body.get("cpf")
+        if not usuario:
+            return {
+                'statusCode': 404,
+                'headers': {'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'message': 'CPF não cadastrado.'})
+            }
 
-    if not cpf_input:
-        return _response(400, {"message": "CPF e obrigatorio."})
+        return {
+            'statusCode': 200,
+            'headers': {'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({
+                'message': 'Autenticado com sucesso.',
+                'cliente': {
+                    'id': usuario['id'],
+                    'nome': usuario['nome'],
+                    'cpf': usuario['cpf']
+                }
+            })
+        }
 
-    cpf = only_digits(cpf_input)
-    if not is_valid_cpf(cpf):
-        return _response(400, {"message": "CPF invalido."})
-
-    repository = CustomerRepository()
-    customer = repository.find_by_cpf(cpf)
-    if customer is None:
-        return _response(404, {"message": "Cliente nao encontrado."})
-
-    if not customer.active:
-        return _response(403, {"message": "Cliente inativo."})
-
-    token = _generate_token(customer.cpf, customer.status)
-    return _response(200, {"token": token, "token_type": "Bearer", "expires_in": int(os.getenv("JWT_EXPIRES_SECONDS", "3600"))})
+    except Exception as e:
+        print(f"Erro na execução da Lambda: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': {'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({'message': 'Erro interno do servidor.'})
+        }

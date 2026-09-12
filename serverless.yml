@@ -7,7 +7,8 @@ provider:
   region: ${env:AWS_REGION, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
   role: arn:aws:iam::251858421017:role/LabRole
-  disableLogs: true
+  logs:
+    restApi: true
   environment:
     JWT_SECRET: ${env:JWT_SECRET, 'change-me'}
     JWT_ISSUER: ${env:JWT_ISSUER, 'autoservice-auth'}
@@ -15,6 +16,12 @@ provider:
     DATADOG_API_KEY: ${env:DATADOG_API_KEY, ''}
     DATADOG_SITE: ${env:DATADOG_SITE, 'datadoghq.com'}
     LOG_LEVEL: ${env:LOG_LEVEL, 'INFO'}
+    DB_HOST: ${env:DB_HOST}
+    DB_NAME: ${env:DB_NAME}
+    DB_USER: ${env:DB_USER}
+    DB_PASSWORD: ${env:DB_PASSWORD}
+    DB_PORT: ${env:DB_PORT, '5432'}
+
   iam:
     role:
       statements:
@@ -29,6 +36,7 @@ functions:
   authCpf:
     name: cpf-auth
     handler: src/lambda_function.handler
+    disableLogs: true
     events:
       - http:
           path: /auth/cpf
