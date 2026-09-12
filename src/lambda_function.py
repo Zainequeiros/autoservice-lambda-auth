@@ -36,31 +36,43 @@ def handler(event, context):
         if not cpf:
             return {
                 "statusCode": 400,
-                "headers": {"Access-Control-Allow-Origin": "*"},
-                "body": json.dumps({"message": "CPF é obrigatório."}),
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "application/json; charset=utf-8",
+                },
+                "body": json.dumps({"message": "CPF é obrigatório."}, ensure_ascii=False),
             }
 
         cpf_limpo = normalize_cpf(cpf)
         if not is_valid_cpf(cpf_limpo):
             return {
                 "statusCode": 400,
-                "headers": {"Access-Control-Allow-Origin": "*"},
-                "body": json.dumps({"message": "CPF invalido."}),
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "application/json; charset=utf-8",
+                },
+                "body": json.dumps({"message": "CPF inválido."}, ensure_ascii=False),
             }
 
         customer = REPOSITORY.find_by_cpf(cpf_limpo)
         if customer is None:
             return {
                 "statusCode": 404,
-                "headers": {"Access-Control-Allow-Origin": "*"},
-                "body": json.dumps({"message": "CPF não cadastrado."}),
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "application/json; charset=utf-8",
+                },
+                "body": json.dumps({"message": "CPF não cadastrado."}, ensure_ascii=False),
             }
 
         if not customer.active:
             return {
                 "statusCode": 403,
-                "headers": {"Access-Control-Allow-Origin": "*"},
-                "body": json.dumps({"message": "Cliente inativo."}),
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "application/json; charset=utf-8",
+                },
+                "body": json.dumps({"message": "Cliente inativo."}, ensure_ascii=False),
             }
 
         secret = os.environ.get("JWT_SECRET", "change-me")
@@ -77,18 +89,24 @@ def handler(event, context):
 
         return {
             "statusCode": 200,
-            "headers": {"Access-Control-Allow-Origin": "*"},
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "application/json; charset=utf-8",
+            },
             "body": json.dumps({
                 "token": token,
                 "token_type": "Bearer",
                 "expires_in": expires_seconds,
-            }),
+            }, ensure_ascii=False),
         }
 
     except Exception as e:
         print(f"Erro na execução da Lambda: {str(e)}")
         return {
             "statusCode": 500,
-            "headers": {"Access-Control-Allow-Origin": "*"},
-            "body": json.dumps({"message": "Erro interno do servidor."}),
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "application/json; charset=utf-8",
+            },
+            "body": json.dumps({"message": "Erro interno do servidor."}, ensure_ascii=False),
         }
