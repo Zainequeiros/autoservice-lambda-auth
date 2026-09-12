@@ -24,7 +24,7 @@ provider:
 functions:
   authCpf:
     name: cpf-auth
-    handler: src/lambda_function.handler
+    handler: lambda_function.handler  # Removido o 'src/' do handler
     disableLogs: true
     events:
       - http:
@@ -33,10 +33,10 @@ functions:
           cors: true
 
 package:
+  individually: false
   patterns:
-    - '!**/**'
+    - '!**'
     - 'src/**'
-    - 'requirements.txt'
 
 plugins:
   - serverless-python-requirements
