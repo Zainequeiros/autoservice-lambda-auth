@@ -29,7 +29,10 @@ jobs:
           pip install pytest pytest-cov
 
       - name: Run Pytest
-        run: pytest
+        env:
+            PYTHONPATH: .
+        run: |
+            pytest
 
   deploy-prod:
     name: Deploy to Production (prod)

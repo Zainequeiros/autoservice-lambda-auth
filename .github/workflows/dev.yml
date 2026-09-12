@@ -29,7 +29,10 @@ jobs:
           pip install pytest pytest-cov
 
       - name: Run Pytest
-        run: pytest
+        env:
+            PYTHONPATH: .
+        run: |
+            pytest
 
   deploy-dev:
     name: Deploy to Homologation (dev)
