@@ -56,3 +56,4 @@ custom:
   pythonRequirements:
     dockerizePip: false
     stripEssentials: true
+    zip: false
