@@ -1,4 +1,4 @@
-import os
+﻿import os
 from dataclasses import dataclass
 from typing import Optional
 
@@ -38,13 +38,12 @@ class CustomerRepository:
 
         conn = self.get_connection()
         try:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT cpf, status, active FROM clientes WHERE cpf = %s LIMIT 1;",
-                (cpf,),
-            )
-            record = cursor.fetchone()
-            cursor.close()
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "SELECT cpf, status, active FROM clientes WHERE cpf = %s LIMIT 1;",
+                    (cpf,),
+                )
+                record = cursor.fetchone()
 
             if record is None:
                 return None
