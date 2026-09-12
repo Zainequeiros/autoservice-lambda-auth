@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -20,6 +20,9 @@ def handler(event, context):
         body = event.get("body", "{}") if isinstance(event, dict) else "{}"
         if isinstance(body, str):
             body = json.loads(body or "{}")
+
+        if not isinstance(body, dict):
+            body = {}
 
         cpf = body.get("cpf")
         if not cpf:
