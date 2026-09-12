@@ -24,7 +24,7 @@ provider:
 functions:
   authCpf:
     name: cpf-auth
-    handler: lambda_function.handler  # Removido o 'src/' do handler
+    handler: lambda_function.handler
     disableLogs: true
     events:
       - http:
