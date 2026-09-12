@@ -4,9 +4,11 @@ from pathlib import Path
 
 import jwt
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-import lambda_function
-from repository import Customer
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+import src.lambda_function as lambda_function  # noqa: E402
+from src.repository import Customer  # noqa: E402
 
 
 def test_returns_400_when_cpf_is_missing():
