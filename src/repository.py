@@ -38,17 +38,30 @@ class CustomerRepository:
 
         conn = self.get_connection()
         try:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    "SELECT cpf, status, active FROM clientes WHERE cpf = %s LIMIT 1;",
-                    (cpf,),
-                )
-                record = cursor.fetchone()
+            candidates = ["cliente", "clientes", "public.cliente", "public.clientes"]
+            last_error = None
 
-            if record is None:
-                return None
+            for table_name in candidates:
+                try:
+                    with conn.cursor() as cursor:
+                        cursor.execute(
+                            f"SELECT cpf, status, active FROM {table_name} WHERE cpf = %s LIMIT 1;",
+                            (cpf,),
+                        )
+                        record = cursor.fetchone()
+                    if record is None:
+                        return None
 
-            cpf_value, status, active = record
-            return Customer(cpf=cpf_value, status=status, active=bool(active))
+                    cpf_value, status, active = record
+                    return Customer(cpf=cpf_value, status=status, active=bool(active))
+                except Exception as exc:  # pragma: no cover - dependente do schema do BD
+                    last_error = exc
+                    if "does not exist" not in str(exc) and "doesn't exist" not in str(exc):
+                        raise
+
+            if last_error is not None:
+                raise last_error
+
+            return None
         finally:
             conn.close()
