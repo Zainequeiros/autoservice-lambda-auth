@@ -36,6 +36,22 @@ def test_returns_403_when_customer_is_inactive(monkeypatch):
     assert response["statusCode"] == 403
 
 
+def test_accepts_existing_customer_even_when_cpf_checksum_is_invalid(monkeypatch):
+    monkeypatch.setattr(
+        lambda_function,
+        "REPOSITORY",
+        type(
+            "Repo",
+            (),
+            {"find_by_cpf": lambda self, cpf: Customer(cpf=cpf, status="ACTIVE", active=True)},
+        )(),
+    )
+
+    response = lambda_function.handler({"body": json.dumps({"cpf": "12345678901"})}, None)
+
+    assert response["statusCode"] == 200
+
+
 def test_returns_token_for_active_customer(monkeypatch):
     monkeypatch.setenv("JWT_SECRET", "test-secret")
     monkeypatch.setenv("JWT_ISSUER", "autoservice-auth-test")
