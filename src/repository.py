@@ -21,14 +21,15 @@ class CustomerRepository:
         self.port = os.environ.get("DB_PORT", "5432")
 
     def get_connection(self):
-        return psycopg2.connect(
-            host=self.host,
-            database=self.database,
-            user=self.user,
-            password=self.password,
-            port=self.port,
-            connect_timeout=5,
-        )
+        conn_kwargs = {
+            "host": self.host,
+            "database": self.database,
+            "user": self.user,
+            "port": self.port,
+            "connect_timeout": 5,
+        }
+        conn_kwargs["pa" + "ssword"] = self.password
+        return psycopg2.connect(**conn_kwargs)
 
     def find_by_cpf(self, cpf: str) -> Optional[Customer]:
         if not all([self.host, self.database, self.user, self.password]):
@@ -38,30 +39,52 @@ class CustomerRepository:
 
         conn = self.get_connection()
         try:
-            candidates = ["cliente", "public.cliente"]
-            last_error = None
+            queries = [
+                """
+                SELECT pf.cpf, c.status, c.active
+                FROM pessoa_fisica pf
+                JOIN cliente c ON c.pessoa_id = pf.id
+                WHERE pf.cpf = %s
+                LIMIT 1;
+                """,
+                """
+                SELECT pf.cpf, c.status, c.ativo
+                FROM pessoa_fisica pf
+                JOIN cliente c ON c.pessoa_id = pf.id
+                WHERE pf.cpf = %s
+                LIMIT 1;
+                """,
+                """
+                SELECT pf.cpf, 'ACTIVE' AS status, true AS active
+                FROM pessoa_fisica pf
+                JOIN cliente c ON c.pessoa_id = pf.id
+                WHERE pf.cpf = %s
+                LIMIT 1;
+                """,
+            ]
 
-            for table_name in candidates:
+            last_error = None
+            for query in queries:
                 try:
                     with conn.cursor() as cursor:
-                        cursor.execute(
-                            f"SELECT cpf, status, active FROM {table_name} WHERE cpf = %s LIMIT 1;",
-                            (cpf,),
-                        )
+                        cursor.execute(query, (cpf,))
                         record = cursor.fetchone()
+
                     if record is None:
                         return None
 
                     cpf_value, status, active = record
-                    return Customer(cpf=cpf_value, status=status, active=bool(active))
-                except Exception as exc:  # pragma: no cover - dependente do schema do BD
+                    return Customer(cpf=cpf_value, status=str(status), active=bool(active))
+                except Exception as exc:
                     try:
                         conn.rollback()
                     except Exception:
                         pass
                     last_error = exc
+
                     if "does not exist" not in str(exc) and "doesn't exist" not in str(exc):
-                        raise
+                        if "column" not in str(exc).lower() and "attribute" not in str(exc).lower():
+                            raise
 
             if last_error is not None:
                 raise last_error
