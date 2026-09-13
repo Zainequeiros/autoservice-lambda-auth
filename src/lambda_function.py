@@ -47,7 +47,7 @@ def handler(event, context):
             }
 
         cpf_limpo = normalize_cpf(cpf)
-        if not is_valid_cpf(cpf_limpo):
+        if len(cpf_limpo) != 11:
             return {
                 "statusCode": 400,
                 "headers": {
@@ -58,6 +58,16 @@ def handler(event, context):
             }
 
         customer = REPOSITORY.find_by_cpf(cpf_limpo)
+        if customer is None and not is_valid_cpf(cpf_limpo):
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": CONTENT_TYPE_JSON,
+                },
+                "body": json.dumps({"message": "CPF inválido."}, ensure_ascii=False),
+            }
+
         if customer is None:
             return {
                 "statusCode": 404,
