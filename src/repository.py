@@ -38,7 +38,7 @@ class CustomerRepository:
 
         conn = self.get_connection()
         try:
-            candidates = ["cliente", "clientes", "public.cliente", "public.clientes"]
+            candidates = ["cliente", "public.cliente"]
             last_error = None
 
             for table_name in candidates:
