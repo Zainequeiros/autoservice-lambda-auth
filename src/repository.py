@@ -55,6 +55,10 @@ class CustomerRepository:
                     cpf_value, status, active = record
                     return Customer(cpf=cpf_value, status=status, active=bool(active))
                 except Exception as exc:  # pragma: no cover - dependente do schema do BD
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
                     last_error = exc
                     if "does not exist" not in str(exc) and "doesn't exist" not in str(exc):
                         raise
@@ -64,4 +68,8 @@ class CustomerRepository:
 
             return None
         finally:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             conn.close()
