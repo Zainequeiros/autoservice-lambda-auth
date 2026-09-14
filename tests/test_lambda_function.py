@@ -77,5 +77,6 @@ def test_returns_token_for_active_customer(monkeypatch):
         issuer="autoservice-auth-test",
     )
     assert token_payload["cpf"] == "39053344705"
+    assert token_payload["sub"] == "39053344705"
     assert payload["token_type"] == "Bearer"
     assert payload["expires_in"] == 120

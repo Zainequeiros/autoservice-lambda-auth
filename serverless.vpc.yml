@@ -8,20 +8,28 @@ provider:
   stage: ${opt:stage, 'dev'}
   role: arn:aws:iam::${env:AWS_ACCOUNT_ID}:role/LabRole
   environment:
-    JWT_SECRET: ${env:JWT_SECRET, 'change-me'}
+    JWT_SECRET: ${env:JWT_SECRET}
     JWT_ISSUER: ${env:JWT_ISSUER, 'autoservice-auth'}
     JWT_EXPIRES_SECONDS: ${env:JWT_EXPIRES_SECONDS, '3600'}
     LOG_LEVEL: ${env:LOG_LEVEL, 'INFO'}
-    DB_HOST: ${env:DB_HOST, ''}
-    DB_NAME: ${env:DB_NAME, ''}
-    DB_USER: ${env:DB_USER, ''}
-    DB_PASSWORD: ${env:DB_PASSWORD, ''}
+    DB_HOST: ${env:DB_HOST}
+    DB_NAME: ${env:DB_NAME}
+    DB_USER: ${env:DB_USER}
+    DB_PASSWORD: ${env:DB_PASSWORD}
     DB_PORT: ${env:DB_PORT, '5432'}
+  vpc:
+    securityGroupIds:
+      - ${env:LAMBDA_SG_ID}
+    subnetIds:
+      - ${env:LAMBDA_SUBNET_1}
+      - ${env:LAMBDA_SUBNET_2}
 
 functions:
   authCpf:
     name: cpf-auth
     handler: src/lambda_function.handler
+    timeout: 15
+    memorySize: 256
 
 package:
   individually: false

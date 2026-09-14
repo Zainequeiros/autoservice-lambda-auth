@@ -1,4 +1,4 @@
-﻿import json
+import json
 import os
 import sys
 from datetime import datetime, timedelta, timezone
@@ -88,17 +88,22 @@ def handler(event, context):
                 "body": json.dumps({"message": "Cliente inativo."}, ensure_ascii=False),
             }
 
-        secret = os.environ.get("JWT_SECRET", "change-me")
+        secret = os.environ.get("JWT_SECRET") or "change-me"
         issuer = os.environ.get("JWT_ISSUER", "autoservice-auth")
         expires_seconds = int(os.environ.get("JWT_EXPIRES_SECONDS", "3600"))
 
+        now = datetime.now(timezone.utc)
         token_payload = {
+            "sub": cpf_limpo,
             "cpf": cpf_limpo,
             "status": customer.status,
             "iss": issuer,
-            "exp": datetime.now(timezone.utc) + timedelta(seconds=expires_seconds),
+            "iat": int(now.timestamp()),
+            "exp": int((now + timedelta(seconds=expires_seconds)).timestamp()),
         }
         token = jwt.encode(token_payload, secret, algorithm="HS256")
+        if isinstance(token, bytes):
+            token = token.decode("utf-8")
 
         return {
             "statusCode": 200,
