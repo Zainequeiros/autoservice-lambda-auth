@@ -17,12 +17,21 @@ provider:
     DB_USER: ${env:DB_USER, ''}
     DB_PASSWORD: ${env:DB_PASSWORD, ''}
     DB_PORT: ${env:DB_PORT, '5432'}
+    DD_API_KEY: ${env:DD_API_KEY, ''}
+    DD_SITE: ${env:DD_SITE, 'datadoghq.com'}
+    DD_ENV: ${self:provider.stage}
+    DD_SERVICE: autoservice-lambda-auth
+    DD_TRACE_ENABLED: ${env:DD_TRACE_ENABLED, 'false'}
+    DD_LOGS_INJECTION: 'true'
 
 functions:
   authCpf:
     name: cpf-auth
     handler: src/lambda_function.handler
     disableLogs: true
+    layers:
+      - arn:aws:lambda:${aws:region}:464622532012:layer:Datadog-Python311:115
+      - arn:aws:lambda:${aws:region}:464622532012:layer:Datadog-Extension:74
     events:
       - http:
           path: /auth/cpf
