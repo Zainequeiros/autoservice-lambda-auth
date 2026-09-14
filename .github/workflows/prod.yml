@@ -77,4 +77,7 @@ jobs:
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: datadoghq.com
+          DD_TRACE_ENABLED: ${{ secrets.DD_TRACE_ENABLED != '' && secrets.DD_TRACE_ENABLED || 'false' }}
         run: ./node_modules/.bin/serverless deploy --stage prod

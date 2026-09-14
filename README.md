@@ -28,6 +28,11 @@ Este repositório cobre o requisito de autenticação corporativa do sistema:
 - Serverless Framework
 - GitHub Actions (CI/CD)
 - JWT (HS256)
+- Datadog Lambda Extension (traces/logs, OBS-07)
+
+### Observabilidade Datadog
+
+Com `DD_API_KEY` e `DD_TRACE_ENABLED=true`, o deploy inclui layers Datadog (Python + Extension) e tags `env` por stage (`homolog`, `prod`). Atualize os ARNs das layers em `serverless.yml` conforme a [documentação oficial](https://docs.datadoghq.com/serverless/libraries_integrations/extension/) se necessário.
 
 ## Estrutura do repositorio
 

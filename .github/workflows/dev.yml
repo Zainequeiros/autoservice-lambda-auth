@@ -61,4 +61,7 @@ jobs:
           AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
           AWS_REGION: 'us-east-1'
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: datadoghq.com
+          DD_TRACE_ENABLED: ${{ secrets.DD_TRACE_ENABLED != '' && secrets.DD_TRACE_ENABLED || 'false' }}
         run: npx serverless@3.38.0 deploy --stage dev
