@@ -65,7 +65,7 @@ Lambda cpf-auth  (este repositório)
 
 Sequência completa (auth + andamento): frame **“2. Sequência — Autenticação CPF → JWT”** no [Miro](https://miro.com/app/board/uXjVHprBYf0=/).
 
-Visão cloud com ícones AWS: [frame Arquitetura AWS](https://miro.com/app/board/uXjVHprBYf0=/?moveToWidget=3458764683739809878) · PNG no repo da app: `autoservice/docs/observability/diagrams/`.
+Visão cloud com ícones AWS: [frame Arquitetura AWS](https://miro.com/app/board/uXjVHprBYf0=/?moveToWidget=3458764683739809878) · PNG oficial na app: `autoservice/docs/observability/diagrams/autoservice-aws-architecture-corrigido.png`.
 
 ---
 
