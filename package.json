@@ -1,0 +1,29 @@
+{
+  "name": "autoservice-lambda-auth",
+  "version": "1.0.0",
+  "description": "Funcao Serverless de autenticacao por CPF para o Tech Challenge POS TECH.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-python-requirements": "^6.1.2"
+  },
+  "scripts": {
+    "test": "pytest -q",
+    "package": "npx --no-install serverless package --stage dev",
+    "deploy": "npx --no-install serverless deploy --stage dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zainequeiros/autoservice-lambda-auth.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Zainequeiros/autoservice-lambda-auth/issues"
+  },
+  "homepage": "https://github.com/Zainequeiros/autoservice-lambda-auth#readme"
+}

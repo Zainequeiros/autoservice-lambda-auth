@@ -1,44 +1,53 @@
 # autoservice-lambda-auth
 
-Function Serverless de autenticacao por CPF para o Tech Challenge POS TECH.
+Funcao Serverless de autenticacao por CPF para o Tech Challenge POS TECH.
 
 ## Proposito
 
 Este repositorio contem a Lambda responsavel por:
-- validar CPF;
-- consultar a existencia/status do cliente;
-- emitir JWT para consumo de rotas protegidas via API Gateway.
+- validar o CPF do cliente;
+- consultar a existencia e o status do cliente no RDS;
+- emitir JWT (HS256) com claims `sub` e `cpf` para rotas protegidas.
+
+## Alinhamento ao desafio corporativo
+
+- API Gateway (`autoservice-infra-k8s`) expoe `POST /auth/cpf` e invoca esta Lambda.
+- A aplicacao no EKS consome o JWT (role `CLIENTE` no andamento da OS).
+- Deploy com VPC ate o RDS: `serverless.vpc.yml`.
+- Pipeline CI/CD valida testes e faz deploy por ambiente.
+- Branch protection com PR obrigatoria nas branches principais.
 
 ## Tecnologias
 
-- Python 3.12
+- Python 3.11
 - AWS Lambda
-- AWS API Gateway (integracao esperada)
-- GitHub Actions (CI/CD)
+- Serverless Framework
 - JWT (HS256)
+- PostgreSQL (RDS) via variaveis `DB_*`
+
+## Estrutura
+
+- `src/lambda_function.py`: handler
+- `src/cpf.py`: validacao de CPF
+- `src/repository.py`: consulta no schema `cadastro`
+- `serverless.yml`: deploy da function
+- `serverless.vpc.yml`: deploy com VPC (subnets/SG)
+- `.github/workflows/`: CI/CD
 
 ## Execucao local
 
-1. Instale as dependencias:
-   ```bash
-   pip install -r requirements.txt pytest
-   ```
-2. Execute os testes:
-   ```bash
-   pytest -q
-   ```
-
-## Contrato da Lambda
-
-Evento esperado:
-
-```json
-{
-  "body": "{\"cpf\":\"390.533.447-05\"}"
-}
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt pytest
+pytest -q
 ```
 
-Resposta de sucesso:
+## Contrato
+
+`POST /auth/cpf` com body `{"cpf":"..."}`.
+
+Sucesso:
 
 ```json
 {
@@ -49,38 +58,28 @@ Resposta de sucesso:
 
 ## Variaveis de ambiente
 
-- `JWT_SECRET` (obrigatoria em producao)
-- `JWT_ISSUER` (padrao: `autoservice-auth`)
-- `JWT_EXPIRES_SECONDS` (padrao: `3600`)
+| Variavel | Uso |
+|----------|-----|
+| `JWT_SECRET` | Segredo HS256 (mesmo da app) |
+| `JWT_ISSUER` | Padrao `autoservice-auth` |
+| `JWT_EXPIRES_SECONDS` | Padrao `3600` |
+| `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_PORT` | RDS |
+| `LAMBDA_SG_ID`, `LAMBDA_SUBNET_1`, `LAMBDA_SUBNET_2` | VPC (`serverless.vpc.yml`) |
+| `AWS_ACCOUNT_ID`, `AWS_REGION` | Conta/regiao do deploy |
+
+## Deploy
+
+```bash
+npm install
+export AWS_ACCOUNT_ID=...
+export JWT_SECRET=...
+export DB_HOST=... DB_NAME=... DB_USER=... DB_PASSWORD=...
+npx serverless deploy --stage dev
+# Com VPC:
+# export LAMBDA_SG_ID=... LAMBDA_SUBNET_1=... LAMBDA_SUBNET_2=...
+# npx serverless deploy --config serverless.vpc.yml --stage dev
+```
 
 ## CI/CD
 
-- PR para `main`: executa testes.
-- Push em `homolog` e `main`: executa testes e deploy automatico da Lambda.
-
-Secrets esperados no GitHub:
-- `AWS_ROLE_TO_ASSUME`
-- `AWS_REGION`
-- `LAMBDA_FUNCTION_NAME`
-
-## Protecao de branch
-
-Configurar no GitHub:
-- `main` protegida, sem commit direto;
-- merge apenas por Pull Request;
-- revisao obrigatoria antes de merge.
-
-## Diagrama (escopo deste repositorio)
-
-```mermaid
-flowchart LR
-  Client[Cliente] --> APIGW[API Gateway]
-  APIGW --> Lambda[Lambda Auth CPF]
-  Lambda --> DB[(Banco Gerenciado)]
-  Lambda --> JWT[JWT]
-  JWT --> APIGW
-```
-
-## Swagger/Postman
-
-Definir e publicar no repositorio da aplicacao/API principal.
+Secrets esperados: `AWS_ROLE_TO_ASSUME`, `AWS_REGION`, `JWT_SECRET` (e opcionais de JWT).

@@ -1,57 +1,130 @@
 import json
 import os
-import time
-from typing import Any, Dict
-
+import sys
+from datetime import datetime, timedelta, timezone
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import jwt
-
-from cpf import is_valid_cpf, only_digits
+from cpf import is_valid_cpf
 from repository import CustomerRepository
 
 
-def _response(status_code: int, payload: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        "statusCode": status_code,
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(payload),
-    }
+REPOSITORY = CustomerRepository()
+CONTENT_TYPE_JSON = "application/json; charset=utf-8"
+
+def normalize_cpf(cpf):
+    return "".join(filter(str.isdigit, str(cpf or "")))
 
 
-def _generate_token(cpf: str, status: str) -> str:
-    secret = os.getenv("JWT_SECRET", "change-me")
-    issuer = os.getenv("JWT_ISSUER", "autoservice-auth")
-    expires_in = int(os.getenv("JWT_EXPIRES_SECONDS", "3600"))
-    now = int(time.time())
-    payload = {
-        "sub": cpf,
-        "cpf": cpf,
-        "customer_status": status,
-        "iss": issuer,
-        "iat": now,
-        "exp": now + expires_in,
-    }
-    return jwt.encode(payload, secret, algorithm="HS256")
+def handler(event, context):
+    try:
+        body = event.get("body") if isinstance(event, dict) and "body" in event else event
 
+        if isinstance(body, str):
+            try:
+                body = json.loads(body or "{}")
+            except json.JSONDecodeError:
+                return {
+                    "statusCode": 400,
+                    "headers": {
+                        "Access-Control-Allow-Origin": "*",
+                        "Content-Type": CONTENT_TYPE_JSON,
+                    },
+                    "body": json.dumps({"message": "Corpo da requisição JSON inválido."}, ensure_ascii=False),
+                }
 
-def handler(event: Dict[str, Any], _context: Any) -> Dict[str, Any]:
-    body_raw = event.get("body")
-    body = json.loads(body_raw) if isinstance(body_raw, str) else (body_raw or {})
-    cpf_input = body.get("cpf")
+        if not isinstance(body, dict):
+            body = {}
 
-    if not cpf_input:
-        return _response(400, {"message": "CPF e obrigatorio."})
+        cpf = body.get("cpf")
+        if not cpf:
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": CONTENT_TYPE_JSON,
+                },
+                "body": json.dumps({"message": "CPF é obrigatório."}, ensure_ascii=False),
+            }
 
-    cpf = only_digits(cpf_input)
-    if not is_valid_cpf(cpf):
-        return _response(400, {"message": "CPF invalido."})
+        cpf_limpo = normalize_cpf(cpf)
+        if len(cpf_limpo) != 11:
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": CONTENT_TYPE_JSON,
+                },
+                "body": json.dumps({"message": "CPF inválido."}, ensure_ascii=False),
+            }
 
-    repository = CustomerRepository()
-    customer = repository.find_by_cpf(cpf)
-    if customer is None:
-        return _response(404, {"message": "Cliente nao encontrado."})
+        customer = REPOSITORY.find_by_cpf(cpf_limpo)
+        if customer is None and not is_valid_cpf(cpf_limpo):
+            return {
+                "statusCode": 400,
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": CONTENT_TYPE_JSON,
+                },
+                "body": json.dumps({"message": "CPF inválido."}, ensure_ascii=False),
+            }
 
-    if not customer.active:
-        return _response(403, {"message": "Cliente inativo."})
+        if customer is None:
+            return {
+                "statusCode": 404,
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": CONTENT_TYPE_JSON,
+                },
+                "body": json.dumps({"message": "CPF não cadastrado."}, ensure_ascii=False),
+            }
 
-    token = _generate_token(customer.cpf, customer.status)
-    return _response(200, {"token": token, "token_type": "Bearer", "expires_in": int(os.getenv("JWT_EXPIRES_SECONDS", "3600"))})
+        if not customer.active:
+            return {
+                "statusCode": 403,
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": CONTENT_TYPE_JSON,
+                },
+                "body": json.dumps({"message": "Cliente inativo."}, ensure_ascii=False),
+            }
+
+        secret = os.environ.get("JWT_SECRET") or "change-me"
+        issuer = os.environ.get("JWT_ISSUER", "autoservice-auth")
+        expires_seconds = int(os.environ.get("JWT_EXPIRES_SECONDS", "3600"))
+
+        now = datetime.now(timezone.utc)
+        token_payload = {
+            "sub": cpf_limpo,
+            "cpf": cpf_limpo,
+            "status": customer.status,
+            "iss": issuer,
+            "iat": int(now.timestamp()),
+            "exp": int((now + timedelta(seconds=expires_seconds)).timestamp()),
+        }
+        token = jwt.encode(token_payload, secret, algorithm="HS256")
+        if isinstance(token, bytes):
+            token = token.decode("utf-8")
+
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": CONTENT_TYPE_JSON,
+            },
+            "body": json.dumps({
+                "token": token,
+                "token_type": "Bearer",
+                "expires_in": expires_seconds,
+            }, ensure_ascii=False),
+        }
+
+    except Exception as e:
+        print(f"Erro na execução da Lambda: {str(e)}")
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": CONTENT_TYPE_JSON,
+            },
+            "body": json.dumps({"message": "Erro interno do servidor."}, ensure_ascii=False),
+        }
