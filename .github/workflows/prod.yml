@@ -65,7 +65,9 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Deploy with Serverless Framework (prod)
+      # Função compartilhada `cpf-auth` (homolog/prod). Deploy full tenta recriar
+      # API Gateway REST e falha no EarlyValidation — atualizamos só o código.
+      - name: Deploy Lambda function code (prod)
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -78,4 +80,16 @@ jobs:
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        run: ./node_modules/.bin/serverless deploy --stage prod
+        run: |
+          set -euo pipefail
+          npx serverless@3.38.0 package --stage prod
+          ZIP="$(find .serverless -name '*.zip' | head -n 1)"
+          test -n "$ZIP"
+          aws lambda update-function-code \
+            --function-name cpf-auth \
+            --zip-file "fileb://${ZIP}" \
+            --region us-east-1
+          aws lambda wait function-updated --function-name cpf-auth --region us-east-1
+          aws lambda get-function-configuration --function-name cpf-auth --region us-east-1 \
+            --query '{FunctionName:FunctionName,LastModified:LastModified,Runtime:Runtime}' \
+            --output table

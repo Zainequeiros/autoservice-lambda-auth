@@ -54,7 +54,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Deploy with Serverless Framework (dev)
+      # Função compartilhada `cpf-auth`. Deploy full do stack quebra (API GW REST
+      # legado + EarlyValidation). Atualiza só o artefato da Lambda.
+      - name: Deploy Lambda function code (dev)
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -66,4 +68,16 @@ jobs:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        run: npx serverless@3.38.0 deploy --stage dev
+        run: |
+          set -euo pipefail
+          npx serverless@3.38.0 package --stage dev
+          ZIP="$(find .serverless -name '*.zip' | head -n 1)"
+          test -n "$ZIP"
+          aws lambda update-function-code \
+            --function-name cpf-auth \
+            --zip-file "fileb://${ZIP}" \
+            --region us-east-1
+          aws lambda wait function-updated --function-name cpf-auth --region us-east-1
+          aws lambda get-function-configuration --function-name cpf-auth --region us-east-1 \
+            --query '{FunctionName:FunctionName,LastModified:LastModified,Runtime:Runtime}' \
+            --output table
