@@ -1,0 +1,110 @@
+# CI/CD — autoservice-lambda-auth
+# Padrão do ecossistema: develop → homolog | main → prod
+
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: lambda-auth-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Pytest with coverage (>= 80%)
+        env:
+          PYTHONPATH: src
+        run: |
+          pytest -q \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-fail-under=80
+
+  deploy:
+    name: Deploy (${{ github.ref_name == 'develop' && 'homolog' || 'prod' }})
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'develop' && 'homolog' || 'prod' }}
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+      # Função compartilhada no Lab Academy (homolog/prod). Deploy full do
+      # Serverless quebra no EarlyValidation do API GW legado — só atualiza o zip.
+      LAMBDA_FUNCTION_NAME: ${{ secrets.LAMBDA_FUNCTION_NAME || 'cpf-auth' }}
+      SERVERLESS_STAGE: ${{ github.ref_name == 'develop' && 'dev' || 'prod' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Configure AWS credentials (Academy / session token)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Package and update Lambda code
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          npx serverless@3.38.0 package --stage "${SERVERLESS_STAGE}"
+          ZIP="$(find .serverless -name '*.zip' | head -n 1)"
+          test -n "${ZIP}"
+          echo "Updating ${LAMBDA_FUNCTION_NAME} from ${ZIP}"
+          aws lambda update-function-code \
+            --function-name "${LAMBDA_FUNCTION_NAME}" \
+            --zip-file "fileb://${ZIP}" \
+            --region "${AWS_REGION}"
+          aws lambda wait function-updated \
+            --function-name "${LAMBDA_FUNCTION_NAME}" \
+            --region "${AWS_REGION}"
+          aws lambda get-function-configuration \
+            --function-name "${LAMBDA_FUNCTION_NAME}" \
+            --region "${AWS_REGION}" \
+            --query '{FunctionName:FunctionName,LastModified:LastModified,Runtime:Runtime}' \
+            --output table
