@@ -1,4 +1,4 @@
-﻿import os
+import os
 from dataclasses import dataclass
 from typing import Optional
 
@@ -40,13 +40,13 @@ class CustomerRepository:
         conn = self.get_connection()
         try:
             with conn.cursor() as cursor:
-                cursor.execute("SET search_path TO public;")
+                cursor.execute("SET search_path TO cadastro, public;")
 
                 query = """
                     SELECT pf.cpf
-                    FROM public.pessoa_fisica pf
-                    JOIN public.pessoa p ON p.id = pf.id
-                    JOIN public.cliente c ON c.pessoa_id = p.id
+                    FROM cadastro.pessoa_fisica pf
+                    JOIN cadastro.pessoa p ON p.id = pf.id
+                    JOIN cadastro.cliente c ON c.pessoa_id = p.id
                     WHERE pf.cpf = %s
                     LIMIT 1;
                 """
