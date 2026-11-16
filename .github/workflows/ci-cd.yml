@@ -1,17 +1,14 @@
-# CI/CD — autoservice-lambda-auth
-# Padrão do ecossistema: develop → homolog | main → prod
-
 name: CI/CD
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main, master, develop]
   push:
-    branches: [main, develop]
+    branches: [main, master, develop]
   workflow_dispatch:
 
 concurrency:
-  group: lambda-auth-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.repository }}-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -21,11 +18,12 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -35,7 +33,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Pytest with coverage (>= 80%)
+      - name: Run tests
         env:
           PYTHONPATH: src
         run: |
@@ -52,8 +50,6 @@ jobs:
     environment: ${{ github.ref_name == 'develop' && 'homolog' || 'prod' }}
     env:
       AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
-      # Função compartilhada no Lab Academy (homolog/prod). Deploy full do
-      # Serverless quebra no EarlyValidation do API GW legado — só atualiza o zip.
       LAMBDA_FUNCTION_NAME: ${{ secrets.LAMBDA_FUNCTION_NAME || 'cpf-auth' }}
       SERVERLESS_STAGE: ${{ github.ref_name == 'develop' && 'dev' || 'prod' }}
 
@@ -61,12 +57,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -74,7 +70,7 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      - name: Configure AWS credentials (Academy / session token)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
