@@ -1,20 +1,31 @@
-# autoservice-lambda-auth
+﻿# autoservice-lambda-auth — Fase 4
 
-Função serverless de autenticação por **CPF**: valida o documento, consulta o cliente no PostgreSQL e emite **JWT** para as APIs protegidas.
+Função serverless de autenticação por **CPF**: valida o documento, consulta o cliente no PostgreSQL (RDS) e emite **JWT** para as APIs dos microsserviços.
+
+Usada na **Fase 3** (cloud) e mantida na **Fase 4** (saga / EKS).
+
+## Qualidade
+
+| Item | Status |
+|------|--------|
+| Testes | `pytest` |
+| Cobertura | **≥ 80%** (`--cov-fail-under=80`) |
+| Contrato | `POST /auth/cpf` |
+| CI/CD | `.github/workflows/ci-cd.yml` — Test em PR; Deploy no push |
 
 ## Propósito
 
 - Validar CPF
 - Consultar existência/status no schema `cadastro`
 - Emitir JWT HS256 (`sub`, `cpf`)
-- Contrato HTTP `POST /auth/cpf` (via API Gateway no `autoservice-infra-k8s`)
+- Expor `POST /auth/cpf` via API Gateway (`autoservice-infra-k8s`)
 
 ## Ecossistema
 
 | Repositório | Papel |
 |-------------|--------|
 | **autoservice-lambda-auth** (este) | Lambda `cpf-auth` |
-| Apps Spring (OS / billing / execução / monólito) | Validam o JWT |
+| `autoservice-os` / `billing` / `execucao` | Validam o JWT |
 | `autoservice-infra-k8s` | API Gateway + VPC |
 | `autoservice-infra-db` | RDS PostgreSQL |
 
@@ -27,8 +38,6 @@ Função serverless de autenticação por **CPF**: valida o documento, consulta 
 | Empacotamento | Serverless Framework |
 | Token | JWT HS256 (`PyJWT`) |
 | Banco | PostgreSQL via `DB_*` |
-| CI/CD | GitHub Actions (`.github/workflows/ci-cd.yml`) |
-| Testes | `pytest` (cobertura ≥ 80%) |
 
 ## Contrato `POST /auth/cpf`
 
@@ -46,6 +55,8 @@ Sucesso (`200`):
 }
 ```
 
+`expires_in` vem de `JWT_EXPIRES_SECONDS` (padrão `3600`).
+
 | Situação | HTTP |
 |----------|------|
 | CPF ausente / inválido | `400` |
@@ -53,7 +64,7 @@ Sucesso (`200`):
 | Cliente inativo | `403` |
 | OK | `200` |
 
-O segredo `JWT_SECRET` deve ser o mesmo usado pelas APIs (`AUTOSERVICE_JWT_SECRET`).
+O segredo `JWT_SECRET` deve ser o mesmo das APIs (`AUTOSERVICE_JWT_SECRET`).
 
 ## Testes locais
 
@@ -70,8 +81,7 @@ pytest -q --cov=src --cov-report=term-missing --cov-fail-under=80
 ```bash
 npm install
 # export AWS_ACCOUNT_ID, JWT_SECRET, DB_*
-npx serverless deploy --stage dev
-# Com VPC até o RDS: serverless.vpc.yml + LAMBDA_SG_ID / LAMBDA_SUBNET_*
+npx serverless deploy --stage homolog
 ```
 
 ### CI/CD
